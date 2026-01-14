@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoMap Quiz</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- SweetAlert2 for nice alerts -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+    <!-- Firebase SDKs -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Export to window for global access (simplest path for existing structure)
+        window.firebase = {
+            initializeApp,
+            getAuth,
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            signOut,
+            onAuthStateChanged,
+            getFirestore,
+            collection,
+            addDoc,
+            getDocs,
+            deleteDoc,
+            doc,
+            query,
+            where
+        };
+    </script>
+</head>
+
+<body>
+
+    <div id="app">
+        <!-- Auth View -->
+        <div id="auth-view" class="view">
+            <div class="auth-container">
+                <header class="header">
+                    <h1>Bienvenido</h1>
+                    <p>Inicia sesión para guardar tus mapas en la nube.</p>
+                </header>
+                <div class="card">
+                    <form id="auth-form" class="auth-form">
+                        <div class="input-group" style="flex-direction: column; margin:0;">
+                            <input type="text" id="auth-email" placeholder="Usuario" required>
+                            <input type="password" id="auth-password" placeholder="Contraseña" required>
+                        </div>
+                        <button type="submit" id="btn-auth-submit" class="btn primary">Entrar</button>
+                    </form>
+                    <div class="auth-toggle">
+                        <span id="auth-toggle-text">¿No tienes cuenta?</span>
+                        <a id="btn-toggle-auth">Regístrate</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard View -->
+        <div id="dashboard" class="view active">
+            <div id="user-info" class="user-badge hidden">
+                <span id="user-email"></span>
+                <button id="btn-logout">Salir</button>
+            </div>
+            <header class="header">
+                <h1>GeoMap Quiz</h1>
+                <p>Crea, comparte y juega tus propios mapas.</p>
+            </header>
+
+            <div class="actions">
+                <button id="btn-create-set" class="btn primary">+ Crear Nuevo Set</button>
+            </div>
+
+            <div class="sets-container">
+                <h2>Mis Sets</h2>
+                <div id="sets-list" class="grid-list">
+                    <!-- Sets will be injected here -->
+                    <div class="empty-state">No tienes sets creados todavía.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Editor View -->
+        <!-- Editor View -->
+        <div id="editor" class="view">
+            <div class="editor-layout">
+                <div class="editor-sidebar">
+                    <div class="sidebar-header">
+                        <button id="btn-editor-back" class="btn icon-btn small">←</button>
+                        <h3>Editor</h3>
+                    </div>
+
+                    <div class="set-info">
+                        <h2 id="editor-set-name">Nuevo Set</h2>
+                        <span class="badge" id="point-count">0 puntos</span>
+                    </div>
+
+                    <div class="points-list" id="editor-points-list">
+                        <!-- Points will be listed here -->
+                        <div class="empty-list">Añade puntos en el mapa</div>
+                    </div>
+
+                    <div class="editor-footer">
+                        <div class="input-panel">
+                            <input type="text" id="point-name-input" placeholder="Nombre..." disabled>
+                            <button id="btn-add-point" class="btn secondary" disabled>➕</button>
+                        </div>
+                        <button id="btn-save-set" class="btn primary full-width">Guardar Set</button>
+                    </div>
+                </div>
+
+                <div class="editor-map-wrapper">
+                    <div id="editor-map" class="map"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Game Mode Selection View -->
+    <div id="game-setup" class="view">
+        <header class="header">
+            <button id="btn-setup-back" class="btn icon-btn">←</button>
+            <h1>Elegir Modo de Juego</h1>
+        </header>
+        <div class="mode-cards">
+            <div class="card mode-card" data-mode="find-loc">
+                <h3>📍 Encuentra el Punto</h3>
+                <p>Te damos un nombre, tú encuentras el marcador correcto en el mapa.</p>
+            </div>
+            <div class="card mode-card" data-mode="name-loc">
+                <h3>🏷️ Nombra el Lugar</h3>
+                <p>Te mostramos un punto, tú escribes cómo se llama.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Game View -->
+    <div id="game" class="view">
+        <div class="map-container">
+            <div id="game-map" class="map"></div>
+
+            <div class="ui-overlay top-left">
+                <button id="btn-game-exit" class="btn icon-btn">Salir</button>
+            </div>
+
+            <div class="ui-overlay top-center">
+                <div class="game-status">
+                    <span id="game-progress">1 / 5</span>
+                </div>
+            </div>
+
+            <!-- Game UI: Question/Interaction Area -->
+            <div class="ui-overlay bottom-panel game-panel">
+
+                <!-- Mode 1: Find location prompt -->
+                <div id="prompt-find" class="game-prompt hidden">
+                    <p>Encuentra:</p>
+                    <h2 id="target-name">Madrid</h2>
+                    <div class="feedback-msg" id="feedback-find"></div>
+                </div>
+
+                <!-- Mode 2: Input name prompt -->
+                <div id="prompt-input" class="game-prompt hidden">
+                    <p>¿Qué lugar es este?</p>
+                    <div class="input-group">
+                        <input type="text" id="game-input-name" placeholder="Escribe el nombre...">
+                        <button id="btn-submit-name" class="btn primary">Enviar</button>
+                    </div>
+                    <div class="feedback-msg" id="feedback-input"></div>
+                </div>
+
+                <!-- Results / Next Button -->
+                <button id="btn-next-round" class="btn secondary hidden">Siguiente →</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results View -->
+    <div id="results" class="view">
+        <div class="results-content">
+            <h1>¡Juego Terminado!</h1>
+            <div class="score-display">
+                <span id="final-score">0</span> / <span id="total-rounds">0</span> Aciertos
+            </div>
+            <button id="btn-home" class="btn primary">Volver al Inicio</button>
+        </div>
+    </div>
+
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>

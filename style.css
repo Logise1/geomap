@@ -1,0 +1,866 @@
+/* Base Setup */
+:root {
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    --accent: #ec4899;
+    --bg-dark: #0f172a;
+    --bg-darker: #020617;
+    --bg-card: rgba(30, 41, 59, 0.7);
+    --text-main: #f8fafc;
+    --text-muted: #94a3b8;
+    --border: rgba(255, 255, 255, 0.1);
+    --success: #10b981;
+    --error: #ef4444;
+    --font-family: 'Inter', sans-serif;
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: var(--font-family);
+    background: radial-gradient(circle at top right, #1e1b4b, var(--bg-dark), var(--bg-darker));
+    color: var(--text-main);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+#app {
+    height: 100%;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+
+button {
+    cursor: pointer;
+    font-family: inherit;
+    border: none;
+    outline: none;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Animations */
+@keyframes fadeInScale {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+
+    70% {
+        opacity: 1;
+        transform: scale(1.02);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0px);
+    }
+
+    50% {
+        transform: translateY(-5px);
+    }
+
+    100% {
+        transform: translateY(0px);
+    }
+}
+
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-4px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(4px);
+    }
+}
+
+.shake-anim {
+    animation: shake 0.4s cubic-bezier(.36, .07, .19, .97) both;
+}
+
+@keyframes pop {
+    0% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.1);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+.pop-anim {
+    animation: pop 0.2s ease-out;
+}
+
+/* Views Management */
+.view {
+    display: none;
+    height: 100%;
+    width: 100%;
+    flex-direction: column;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+}
+
+.view.active {
+    display: flex;
+    opacity: 1;
+    animation: fadeInScale 0.4s ease-out forwards;
+}
+
+/* Typography & Layout */
+.header {
+    padding: 3rem 2rem;
+    text-align: center;
+    position: relative;
+    z-index: 10;
+}
+
+.header h1 {
+    font-size: 3.5rem;
+    margin-bottom: 0.5rem;
+    background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 2px 10px rgba(129, 140, 248, 0.3));
+    letter-spacing: -1px;
+    line-height: 1.2;
+    padding-bottom: 10px;
+    /* Extra space for descenders */
+}
+
+.header p {
+    color: var(--text-muted);
+    font-size: 1.1rem;
+}
+
+.grid-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 2rem;
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+    overflow-y: auto;
+    /* Custom Scrollbar */
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+}
+
+/* Glassmorphism Components */
+.card,
+.bottom-panel,
+.game-status,
+.mode-card,
+.btn.icon-btn {
+    background: var(--bg-card);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    box-shadow: var(--glass-shadow);
+}
+
+/* Buttons */
+.btn {
+    padding: 1rem 2rem;
+    border-radius: 50px;
+    font-weight: 700;
+    font-size: 1.1rem;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.btn.primary {
+    background: linear-gradient(135deg, var(--primary), #4338ca);
+    color: white;
+    box-shadow: 0 4px 0 #3730a3;
+    /* Playful 3D effect */
+    transform: translateY(0);
+}
+
+.btn.primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 0 #3730a3;
+    background: linear-gradient(135deg, #818cf8, #4f46e5);
+}
+
+.btn.primary:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 0 #3730a3;
+}
+
+.btn.secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+}
+
+.btn.secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn.icon-btn {
+    padding: 0.8rem 1.5rem;
+    border-radius: 50px;
+    /* pill shape */
+    font-size: 1rem;
+}
+
+.btn.icon-btn.small {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    width: auto;
+}
+
+.btn.icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Cards */
+.card {
+    border-radius: 24px;
+    padding: 2rem;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+    overflow: hidden;
+    background: rgba(30, 41, 59, 0.6);
+    /* Slightly more transparent */
+}
+
+.card:hover {
+    border-color: var(--primary);
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+/* Set Card Specifics */
+.set-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 150px;
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+}
+
+.set-card h3 {
+    margin-bottom: 0.5rem;
+    font-size: 1.4rem;
+    color: var(--text-main);
+}
+
+.set-card p {
+    color: var(--text-muted);
+}
+
+.set-card .delete-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--error);
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    opacity: 0;
+}
+
+.set-card:hover .delete-btn {
+    opacity: 1;
+}
+
+.set-card .delete-btn:hover {
+    background: var(--error);
+    color: white;
+    transform: rotate(90deg);
+}
+
+/* Actions Bar */
+.actions {
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: center;
+}
+
+/* Mode Selection */
+.mode-cards {
+    display: flex;
+    gap: 3rem;
+    justify-content: center;
+    padding: 2rem;
+    flex-wrap: wrap;
+    align-items: stretch;
+}
+
+.mode-card {
+    max-width: 320px;
+    text-align: center;
+    padding: 3rem 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.mode-card:hover {
+    border-color: var(--accent);
+}
+
+.mode-card h3 {
+    font-size: 1.8rem;
+    color: var(--text-main);
+}
+
+/* Editor & Game Map Layouts */
+.map-container {
+    flex: 1;
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+.map {
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+}
+
+.ui-overlay {
+    position: absolute;
+    z-index: 1000;
+    pointer-events: none;
+    /* Let clicks pass through transparent parts */
+}
+
+.ui-overlay>* {
+    pointer-events: auto;
+    /* Re-enable clicks on buttons/panels */
+}
+
+.top-left {
+    top: 24px;
+    left: 24px;
+}
+
+.top-center {
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.bottom-panel {
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 500px;
+    padding: 2rem;
+    border-radius: 20px;
+    text-align: center;
+    animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Editor Inputs */
+.editor-controls h3 {
+    margin-bottom: 0.5rem;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1.5rem;
+    align-items: center;
+    /* Fix for stretching inputs */
+}
+
+.editor-actions input,
+.input-group input {
+    flex: 1;
+    padding: 1rem 1.5rem;
+    border-radius: 16px;
+    border: 2px solid var(--border);
+    background: rgba(15, 23, 42, 0.6);
+    color: white;
+    font-size: 1.1rem;
+    transition: all 0.2s;
+    height: 56px;
+}
+
+.editor-actions input:focus,
+.input-group input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+}
+
+/* Game Status HUD */
+.game-status {
+    padding: 0.6rem 2rem;
+    border-radius: 50px;
+    font-weight: 800;
+    font-size: 1.2rem;
+    letter-spacing: 2px;
+    background: rgba(15, 23, 42, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Game Interactions */
+.game-prompt p {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.game-prompt h2 {
+    font-size: 2.5rem;
+    margin: 0.5rem 0 1.5rem 0;
+    background: linear-gradient(to right, #fff, #c7d2fe);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+    animation: pop-anim 0.3s;
+}
+
+.input-group {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 1rem;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* Feedback Messages */
+.feedback-msg {
+    margin-top: 1rem;
+    font-weight: 700;
+    min-height: 1.5em;
+    font-size: 1.1rem;
+    transition: all 0.3s;
+}
+
+.feedback-msg.correct {
+    color: var(--success);
+    text-shadow: 0 0 15px rgba(34, 197, 94, 0.4);
+    animation: pop 0.3s ease-out;
+}
+
+.feedback-msg.wrong {
+    color: var(--error);
+    text-shadow: 0 0 15px rgba(239, 68, 68, 0.4);
+    animation: shake 0.4s;
+}
+
+/* Results Screen */
+#results {
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    background: radial-gradient(circle at center, #1e1b4b 0%, #020617 100%);
+    z-index: 2000;
+}
+
+.results-content {
+    background: rgba(255, 255, 255, 0.03);
+    padding: 4rem;
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px);
+    animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.results-content h1 {
+    font-size: 3rem;
+    background: linear-gradient(to bottom right, #fff, #94a3b8);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.score-display {
+    font-size: 6rem;
+    font-weight: 900;
+    margin: 2rem 0;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 4px 15px rgba(99, 102, 241, 0.5));
+}
+
+/* Leaflet Overrides */
+.leaflet-popup-content-wrapper {
+    background: var(--bg-card);
+    color: var(--text-main);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+}
+
+.leaflet-popup-tip {
+    background: var(--bg-card);
+}
+
+.leaflet-container {
+    font-family: var(--font-family) !important;
+}
+
+/* Custom Marker Styles */
+.custom-pin {
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.custom-pin:hover {
+    transform: scale(1.2) translateY(-5px);
+    z-index: 1000 !important;
+}
+
+/* Auth View */
+.auth-container {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 2rem;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.auth-toggle {
+    text-align: center;
+    color: var(--text-muted);
+    margin-top: 1rem;
+    font-size: 0.9rem;
+}
+
+.auth-toggle a {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.auth-toggle a:hover {
+    text-decoration: underline;
+}
+
+.user-badge {
+    position: absolute;
+    top: 2rem;
+    right: 2rem;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid var(--border);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+}
+
+.user-badge span {
+    opacity: 0.8;
+}
+
+.user-badge button {
+    background: none;
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.sets-container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem 2rem 2rem;
+}
+
+.sets-container h2 {
+    font-size: 2rem;
+    margin-bottom: 1.5rem;
+    color: var(--text-main);
+    padding-left: 1rem;
+    border-left: 4px solid var(--accent);
+}
+
+/* Tablet & Mobile Improvements */
+@media (max-width: 1024px) {
+    .header h1 {
+        font-size: 2.5rem;
+    }
+
+    .sets-container {
+        padding: 0 1.5rem 6rem 1.5rem;
+        /* More bottom padding for scroll */
+    }
+
+    .grid-list {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .bottom-panel {
+        width: 95%;
+        max-width: 600px;
+        padding: 1.5rem;
+        bottom: 24px;
+    }
+
+    .editor-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn {
+        width: 100%;
+    }
+
+    .btn.icon-btn {
+        width: auto;
+        /* Keep back buttons small */
+    }
+
+    /* Better touch targets for map controls */
+    .leaflet-touch .leaflet-control-layers,
+    .leaflet-touch .leaflet-bar {
+        border: 2px solid rgba(255, 255, 255, 0.2);
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .leaflet-control-layers-toggle {
+        width: 44px !important;
+        height: 44px !important;
+    }
+}
+
+/* New Editor Layout */
+.editor-layout {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+.editor-sidebar {
+    width: 350px;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    flex-shrink: 0;
+}
+
+.sidebar-header {
+    padding: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+}
+
+.title-input {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--primary);
+    font-weight: 700;
+    width: 100%;
+    outline: none;
+    border-bottom: 1px solid transparent;
+    transition: all 0.2s;
+}
+
+.title-input:focus {
+    border-bottom-color: var(--primary);
+}
+
+.set-info {
+    padding: 1.5rem;
+}
+
+.set-info h2 {
+    font-size: 1.5rem;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+.points-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.point-item {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 0.8rem;
+    border-radius: 12px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    animation: slideUp 0.3s ease-out;
+}
+
+.point-item span {
+    font-weight: 500;
+}
+
+.point-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.mini-btn {
+    padding: 0.4rem;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.mini-btn:hover {
+    background: var(--primary);
+    color: white;
+}
+
+.mini-btn.del:hover {
+    background: var(--error);
+}
+
+.editor-footer {
+    padding: 1.5rem;
+    border-top: 1px solid var(--border);
+    background: rgba(15, 23, 42, 0.9);
+}
+
+.input-panel {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.input-panel input {
+    flex: 1;
+    padding: 0.8rem 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(0, 0, 0, 0.4);
+    color: white;
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.2s;
+}
+
+.input-panel input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3);
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.editor-map-wrapper {
+    flex: 1;
+    position: relative;
+    height: 100%;
+}
+
+@media (max-width: 768px) {
+    .editor-layout {
+        flex-direction: column-reverse;
+    }
+
+    .editor-sidebar {
+        width: 100%;
+        height: 40%;
+    }
+
+    .editor-map-wrapper {
+        height: 60%;
+    }
+}
