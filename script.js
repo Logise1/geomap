@@ -748,7 +748,7 @@ function normalizeString(str) {
         .replace(/[^a-z0-9]/g, ""); // remove spaces and punctuation
 }
 
-function startGame(mode) {
+async function startGame(mode) {
     state.game.mode = mode;
     const points = state.currentSet.points || [];
     if (points.length === 0) {
@@ -766,92 +766,27 @@ function startGame(mode) {
     state.game.markers = [];
 
     showView('game');
-    initGameMap();
+
+    try {
+        await initGameMap();
+    } catch (e) {
+        console.error("Map init error:", e);
+        return;
+    }
 
     if (mode === 'geo-show') {
-        // Introduction
-        const userName = state.auth.user && state.auth.user.email ? state.auth.user.email.split('@')[0] : 'Jugador';
-        speak(`Bienvenido al test de geografía de ${userName}`);
-        // Wait a bit for the intro before starting round? 
-        // Actually the round start will speak too, so maybe chain them?
-        // We'll just start round which has its own speech.
+        // No welcome speech
     }
 
     startRound();
 }
 
-function initGameMap() {
-    if (gameMap) {
-        gameMap.remove();
-        gameMap = null;
-    }
-
-    const isImageMode = state.currentSet.mode === 'image';
-
-    if (isImageMode) {
-        gameMap = L.map('game-map', {
-            crs: L.CRS.Simple,
-            minZoom: -2,
-            maxZoom: 4,
-            zoomControl: false,
-            attributionControl: false
-        });
-
-        const url = state.currentSet.imageUrl;
-        const img = new Image();
-        img.onload = () => {
-            const w = img.width;
-            const h = img.height;
-            const bounds = [[0, 0], [h, w]];
-            L.imageOverlay(url, bounds).addTo(gameMap);
-            gameMap.fitBounds(bounds);
-        };
-        img.src = url;
-
-    } else {
-        gameMap = L.map('game-map', {
-            zoomControl: false,
-            layers: [tileLayers["Callejero"]]
-        }).setView([20, 0], 2);
-    }
-
-    setTimeout(() => gameMap.invalidateSize(), 200);
-}
-
-function startRound() {
-    if (state.game.round >= state.game.shuffledPoints.length) {
-        endGame();
-        return;
-    }
-
-    const currentPoint = state.game.shuffledPoints[state.game.round];
-    state.game.currentPoint = currentPoint;
-
-    // Update UI
-    $('game-progress').innerText = `${state.game.round + 1} / ${state.game.shuffledPoints.length}`;
-    $('btn-next-round').classList.add('hidden');
-    $('feedback-find').innerText = '';
-    $('feedback-show').innerText = '';
-    $('feedback-show').className = 'feedback-msg';
-    $('btn-mic').classList.remove('listening');
-    $('listening-indicator').classList.add('hidden');
-
-    // Clear Markers
-    gameMap.eachLayer((layer) => {
-        if (layer instanceof L.Marker) gameMap.removeLayer(layer);
-    });
-
-    if (state.game.mode === 'find-loc') {
-        setupModeFind(currentPoint);
-    } else if (state.game.mode === 'geo-show') {
-        setupModeGeoShow(currentPoint);
-    }
-}
+// ... initGameMap ...
 
 // MODE 1: FIND LOCATION
 function setupModeFind(point) {
-    $('prompt-find').classList.remove('hidden');
-    $('prompt-show').classList.add('hidden');
+    if ($('prompt-find')) $('prompt-find').classList.remove('hidden');
+    if ($('prompt-show')) $('prompt-show').classList.add('hidden');
     $('target-name').innerText = point.name;
 
     state.currentSet.points.forEach(p => {
@@ -899,8 +834,11 @@ function handleMarkerClick(clickedPointData, markerClicked) {
 
 // MODE 2: GEO SHOW (Voice)
 function setupModeGeoShow(point) {
-    $('prompt-find').classList.add('hidden');
-    $('prompt-show').classList.remove('hidden');
+    if ($('prompt-find')) $('prompt-find').classList.add('hidden');
+    if ($('prompt-show')) $('prompt-show').classList.remove('hidden');
+
+    // Hide the question text for a cleaner UI
+    $('show-question-text').style.display = 'none';
 
     // reset mic button logic
     const micBtn = $('btn-mic');
@@ -911,37 +849,17 @@ function setupModeGeoShow(point) {
     const marker = L.marker([point.lat, point.lng]).addTo(gameMap);
     state.game.markers.push(marker);
 
-    const zoomLevel = state.currentSet.mode === 'image' ? 2 : 6;
+    // Reduced zoom: 4 for World, 1 for Image (was 6 and 2)
+    const zoomLevel = state.currentSet.mode === 'image' ? 1 : 4;
+
+    // Zoom/Pan
     gameMap.flyTo([point.lat, point.lng], zoomLevel, {
         animate: true,
-        duration: 1.5
+        duration: 2.0 // Slower, smoother translation
     });
 
-    // Speak Question
-    // Only say "En primer lugar" for the first round (index 0)
-    let qText = "¿Cómo se llama este punto?";
-    if (state.game.round === 0) {
-        qText = "En primer lugar, " + qText.toLowerCase();
-    } else {
-        // Optional: add variety
-        const phrases = ["¿Y este?", "¿Cómo se llama este lugar?", "¿Qué sitio es este?", "¿Lo reconoces?"];
-        qText = phrases[Math.floor(Math.random() * phrases.length)];
-    }
-
-    $('show-question-text').innerText = qText;
-
-    setTimeout(() => {
-        // Use a dedicated Utterance for flow control
-        if (synth.speaking) synth.cancel();
-
-        const utter = new SpeechSynthesisUtterance(qText);
-        utter.lang = 'es-ES';
-        utter.onend = () => {
-            startListening();
-        };
-        synth.speak(utter);
-
-    }, 1000);
+    // Start listening immediately (during transition)
+    startListening();
 }
 
 function startListening() {
@@ -1047,13 +965,15 @@ function checkVoiceAnswer(transcript) {
         playTone(true);
         confetti({ particleCount: 50 });
 
-        $('btn-next-round').classList.remove('hidden');
+        setTimeout(() => nextRound(), 3000);
     } else {
         feedback.innerText = `Dijiste: "${cleanTranscript}". ¡Mal! Era: ${correctName}`;
         feedback.classList.add('wrong');
         playTone(false);
-        $('btn-next-round').classList.remove('hidden');
+
+        setTimeout(() => nextRound(), 4000);
     }
+    // $('btn-next-round').classList.remove('hidden'); // No manual next needed
     btn.disabled = true;
 }
 
