@@ -151,9 +151,9 @@
                     <h3>📍 Encuentra el Punto</h3>
                     <p>Te damos un nombre, tú encuentras el marcador correcto en el mapa.</p>
                 </div>
-                <div class="card mode-card" data-mode="name-loc">
-                    <h3>🏷️ Nombra el Lugar</h3>
-                    <p>Te mostramos un punto, tú escribes cómo se llama.</p>
+                <div class="card mode-card" data-mode="geo-show">
+                    <h3>🎙️ Geography Show</h3>
+                    <p>¡El show comienza! Dinos el nombre del lugar usando tu voz.</p>
                 </div>
             </div>
         </div>
@@ -183,14 +183,16 @@
                         <div class="feedback-msg" id="feedback-find"></div>
                     </div>
 
-                    <!-- Mode 2: Input name prompt -->
-                    <div id="prompt-input" class="game-prompt hidden">
-                        <p>¿Qué lugar es este?</p>
-                        <div class="input-group">
-                            <input type="text" id="game-input-name" placeholder="Escribe el nombre...">
-                            <button id="btn-submit-name" class="btn primary">Enviar</button>
+                    <!-- Mode 2: Geography Show (Voice) -->
+                    <div id="prompt-show" class="game-prompt hidden">
+                        <p id="show-question-text">¿Qué lugar es este?</p>
+                        <div class="mic-container">
+                            <button id="btn-mic" class="btn mic-btn">
+                                <span class="mic-icon">🎙️</span>
+                            </button>
+                            <div id="listening-indicator" class="hidden">Escuchando...</div>
                         </div>
-                        <div class="feedback-msg" id="feedback-input"></div>
+                        <div class="feedback-msg" id="feedback-show"></div>
                     </div>
 
                     <!-- Results / Next Button -->
@@ -210,6 +212,9 @@
             </div>
         </div>
     </div>
+
+    <!-- Tone.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 
     <script src="script.js"></script>
 </body>

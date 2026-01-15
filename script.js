@@ -310,12 +310,7 @@ function initEventListeners() {
             if (res.isConfirmed) showView('dashboard');
         });
     };
-    $('btn-submit-name').onclick = handleNameSubmit;
     $('btn-next-round').onclick = nextRound;
-
-    $('game-input-name').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleNameSubmit();
-    });
 
     // Results
     $('btn-home').onclick = () => showView('dashboard');
@@ -708,6 +703,51 @@ function openGameSetup(set) {
     showView('game-setup');
 }
 
+const synth = window.speechSynthesis;
+let recognition = null;
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recognition = new SpeechRecognition();
+    recognition.lang = 'es-ES';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+}
+
+// Tone.js Synth
+let toneSynth = null;
+async function initTone() {
+    await Tone.start();
+    toneSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+}
+
+function playTone(isCorrect) {
+    if (!toneSynth) return;
+    const now = Tone.now();
+    if (isCorrect) {
+        toneSynth.triggerAttackRelease("C5", "8n", now);
+        toneSynth.triggerAttackRelease("E5", "8n", now + 0.1);
+        toneSynth.triggerAttackRelease("G5", "8n", now + 0.2);
+    } else {
+        toneSynth.triggerAttackRelease("A3", "8n", now);
+        toneSynth.triggerAttackRelease("Ab3", "8n", now + 0.1);
+        toneSynth.triggerAttackRelease("G3", "4n", now + 0.2);
+    }
+}
+
+function speak(text) {
+    if (synth.speaking) synth.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'es-ES';
+    utter.rate = 1.0;
+    synth.speak(utter);
+}
+
+function normalizeString(str) {
+    return str.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove accents
+        .replace(/[^a-z0-9]/g, ""); // remove spaces and punctuation
+}
+
 function startGame(mode) {
     state.game.mode = mode;
     const points = state.currentSet.points || [];
@@ -716,13 +756,27 @@ function startGame(mode) {
         showView('dashboard');
         return;
     }
+
+    // Init Audio Context
+    initTone().catch(e => console.log("Audio context warning", e));
+
     state.game.shuffledPoints = [...points].sort(() => 0.5 - Math.random());
     state.game.round = 0;
     state.game.score = 0;
-    state.game.markers = []; // Reset markers
+    state.game.markers = [];
 
     showView('game');
     initGameMap();
+
+    if (mode === 'geo-show') {
+        // Introduction
+        const userName = state.auth.user && state.auth.user.email ? state.auth.user.email.split('@')[0] : 'Jugador';
+        speak(`Bienvenido al test de geografía de ${userName}`);
+        // Wait a bit for the intro before starting round? 
+        // Actually the round start will speak too, so maybe chain them?
+        // We'll just start round which has its own speech.
+    }
+
     startRound();
 }
 
@@ -735,7 +789,6 @@ function initGameMap() {
     const isImageMode = state.currentSet.mode === 'image';
 
     if (isImageMode) {
-        // Custom Image Map
         gameMap = L.map('game-map', {
             crs: L.CRS.Simple,
             minZoom: -2,
@@ -750,22 +803,16 @@ function initGameMap() {
             const w = img.width;
             const h = img.height;
             const bounds = [[0, 0], [h, w]];
-
             L.imageOverlay(url, bounds).addTo(gameMap);
             gameMap.fitBounds(bounds);
-            gameMap.setMaxBounds(bounds);
-            gameMap.setView([h / 2, w / 2], 0);
         };
         img.src = url;
 
     } else {
-        // Standard World Map
         gameMap = L.map('game-map', {
             zoomControl: false,
             layers: [tileLayers["Callejero"]]
         }).setView([20, 0], 2);
-
-        L.control.layers(tileLayers).addTo(gameMap);
     }
 
     setTimeout(() => gameMap.invalidateSize(), 200);
@@ -783,43 +830,36 @@ function startRound() {
     // Update UI
     $('game-progress').innerText = `${state.game.round + 1} / ${state.game.shuffledPoints.length}`;
     $('btn-next-round').classList.add('hidden');
-    $('feedback-input').innerText = '';
     $('feedback-find').innerText = '';
-    $('feedback-input').className = 'feedback-msg'; // reset colors
-    $('feedback-find').className = 'feedback-msg';
+    $('feedback-show').innerText = '';
+    $('feedback-show').className = 'feedback-msg';
+    $('btn-mic').classList.remove('listening');
+    $('listening-indicator').classList.add('hidden');
 
-    // Clear Markers from map just in case (depending on mode)
+    // Clear Markers
     gameMap.eachLayer((layer) => {
         if (layer instanceof L.Marker) gameMap.removeLayer(layer);
     });
 
     if (state.game.mode === 'find-loc') {
         setupModeFind(currentPoint);
-    } else {
-        setupModeName(currentPoint);
+    } else if (state.game.mode === 'geo-show') {
+        setupModeGeoShow(currentPoint);
     }
 }
 
-// MODE 1: FIND LOCATION (Shows Name -> User clicks Marker)
+// MODE 1: FIND LOCATION
 function setupModeFind(point) {
     $('prompt-find').classList.remove('hidden');
-    $('prompt-input').classList.add('hidden');
+    $('prompt-show').classList.add('hidden');
     $('target-name').innerText = point.name;
-
-    // Add ALL markers to the map but don't label them initially?
-    // User request: "le das al punto".
-    // We add all markers from the set to define the search space.
-    // They should be clickable.
 
     state.currentSet.points.forEach(p => {
         const marker = L.marker([p.lat, p.lng]).addTo(gameMap);
-
-        // Interaction
         marker.on('click', () => handleMarkerClick(p, marker));
         state.game.markers.push(marker);
     });
 
-    // Fit bounds to show all points
     if (state.currentSet.points.length > 0) {
         const group = new L.featureGroup(state.game.markers);
         gameMap.fitBounds(group.getBounds().pad(0.1));
@@ -827,11 +867,10 @@ function setupModeFind(point) {
 }
 
 function handleMarkerClick(clickedPointData, markerClicked) {
-    if ($('btn-next-round').classList.contains('hidden') === false) return; // Round already done
+    if ($('btn-next-round').classList.contains('hidden') === false) return;
 
     const target = state.game.currentPoint;
-    const isCorrect = (clickedPointData.lat === target.lat && clickedPointData.lng === target.lng); // Simple check since data ref is same
-
+    const isCorrect = (clickedPointData.lat === target.lat && clickedPointData.lng === target.lng);
     const feedback = $('feedback-find');
 
     if (isCorrect) {
@@ -839,20 +878,13 @@ function handleMarkerClick(clickedPointData, markerClicked) {
         feedback.innerText = "¡Correcto! 🎉";
         feedback.classList.add('correct');
         markerClicked.setIcon(getIcon('green'));
-
-        // Mini confetti for correct answer
-        confetti({
-            particleCount: 50,
-            spread: 60,
-            origin: { y: 0.8 }
-        });
-
+        playTone(true);
+        confetti({ particleCount: 50, spread: 60, origin: { y: 0.8 } });
     } else {
-        feedback.innerText = `Incorrecto. Era: ${target.name}`; // Well, in this mode we knew the name.
+        feedback.innerText = `Incorrecto. Era: ${target.name}`;
         feedback.classList.add('wrong');
         markerClicked.setIcon(getIcon('red'));
-
-        // Highlight the correct one
+        playTone(false);
         state.game.markers.forEach(m => {
             const mLatLng = m.getLatLng();
             if (mLatLng.lat === target.lat && mLatLng.lng === target.lng) {
@@ -861,70 +893,168 @@ function handleMarkerClick(clickedPointData, markerClicked) {
             }
         });
     }
-
     $('btn-next-round').classList.remove('hidden');
 }
 
 
-// MODE 2: NAME LOCATION (Shows Marker -> User types Name)
-function setupModeName(point) {
+// MODE 2: GEO SHOW (Voice)
+function setupModeGeoShow(point) {
     $('prompt-find').classList.add('hidden');
-    $('prompt-input').classList.remove('hidden');
-    $('game-input-name').value = '';
-    $('game-input-name').disabled = false;
-    $('btn-submit-name').disabled = false;
-    $('game-input-name').focus();
+    $('prompt-show').classList.remove('hidden');
 
-    // Show ONLY target marker? Or all? 
-    // "te dice el punto" implies singular. Let's just show the specific target point.
-    // This avoids confusion "Which one am I naming?"
+    // reset mic button logic
+    const micBtn = $('btn-mic');
+    micBtn.onclick = startListening;
+    micBtn.disabled = false;
+
+    // Marker logic
     const marker = L.marker([point.lat, point.lng]).addTo(gameMap);
+    state.game.markers.push(marker);
 
-    // Smooth Fly Animation
     const zoomLevel = state.currentSet.mode === 'image' ? 2 : 6;
     gameMap.flyTo([point.lat, point.lng], zoomLevel, {
         animate: true,
         duration: 1.5
     });
 
-    state.game.markers.push(marker);
+    // Speak Question
+    // Only say "En primer lugar" for the first round (index 0)
+    let qText = "¿Cómo se llama este punto?";
+    if (state.game.round === 0) {
+        qText = "En primer lugar, " + qText.toLowerCase();
+    } else {
+        // Optional: add variety
+        const phrases = ["¿Y este?", "¿Cómo se llama este lugar?", "¿Qué sitio es este?", "¿Lo reconoces?"];
+        qText = phrases[Math.floor(Math.random() * phrases.length)];
+    }
+
+    $('show-question-text').innerText = qText;
+
+    setTimeout(() => {
+        // Use a dedicated Utterance for flow control
+        if (synth.speaking) synth.cancel();
+
+        const utter = new SpeechSynthesisUtterance(qText);
+        utter.lang = 'es-ES';
+        utter.onend = () => {
+            startListening();
+        };
+        synth.speak(utter);
+
+    }, 1000);
 }
 
-function handleNameSubmit() {
-    if ($('btn-next-round').classList.contains('hidden') === false) return;
+function startListening() {
+    if (!recognition) {
+        Swal.fire('Error', 'Tu navegador no soporta reconocimiento de voz.', 'error');
+        return;
+    }
+    const btn = $('btn-mic');
+    const indicator = $('listening-indicator');
 
-    const input = $('game-input-name');
-    const val = input.value.trim().toLowerCase();
-    const correctName = state.game.currentPoint.name.toLowerCase();
+    try {
+        recognition.start();
+        btn.classList.add('listening');
+        indicator.classList.remove('hidden');
 
-    if (!val) return;
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            checkVoiceAnswer(transcript);
+        };
 
-    // Simple string similarity or exact match?
-    // Let's do partial match (contains) or basic check
-    // Actually exact(ish) match is standard. Let's loosen it a bit (trim, case)
+        recognition.onerror = (event) => {
+            console.error("STT Error", event.error);
+            btn.classList.remove('listening');
+            indicator.classList.add('hidden');
+            if (event.error === 'not-allowed') {
+                Swal.fire('Permiso denegado', 'Permite el uso del micrófono.', 'warning');
+            }
+        };
 
-    const isCorrect = val === correctName || (correctName.includes(val) && val.length > 3);
+        recognition.onend = () => {
+            btn.classList.remove('listening');
+            indicator.classList.add('hidden');
+        };
+    } catch (e) {
+        // already started?
+        console.log("Recognition already active");
+    }
+}
 
-    const feedback = $('feedback-input');
+function levenshteinDistance(a, b) {
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+
+    const matrix = [];
+
+    for (let i = 0; i <= b.length; i++) {
+        matrix[i] = [i];
+    }
+
+    for (let j = 0; j <= a.length; j++) {
+        matrix[0][j] = j;
+    }
+
+    for (let i = 1; i <= b.length; i++) {
+        for (let j = 1; j <= a.length; j++) {
+            if (b.charAt(i - 1) == a.charAt(j - 1)) {
+                matrix[i][j] = matrix[i - 1][j - 1];
+            } else {
+                matrix[i][j] = Math.min(
+                    matrix[i - 1][j - 1] + 1,
+                    Math.min(
+                        matrix[i][j - 1] + 1,
+                        matrix[i - 1][j] + 1
+                    )
+                );
+            }
+        }
+    }
+
+    return matrix[b.length][a.length];
+}
+
+function checkVoiceAnswer(transcript) {
+    const btn = $('btn-mic');
+    btn.classList.remove('listening');
+
+    const correctName = state.game.currentPoint.name;
+
+    // Deduplicate consecutive words
+    const cleanTranscript = transcript.replace(/\b(\w+)\s+\1\b/gi, '$1');
+
+    const normalizedTranscript = normalizeString(cleanTranscript);
+    const normalizedTarget = normalizeString(correctName);
+
+    // Calculate tolerance based on string length
+    const distance = levenshteinDistance(normalizedTranscript, normalizedTarget);
+    let tolerance = 0;
+    if (normalizedTarget.length > 3) tolerance = 1;
+    if (normalizedTarget.length > 6) tolerance = 2;
+    if (normalizedTarget.length > 10) tolerance = 3;
+
+    // Fuzzy check 
+    const isCorrect = normalizedTranscript === normalizedTarget ||
+        (normalizedTarget.length > 3 && normalizedTranscript.includes(normalizedTarget)) ||
+        distance <= tolerance;
+
+    const feedback = $('feedback-show');
 
     if (isCorrect) {
         state.game.score++;
-        feedback.innerText = "¡Correcto! 🎉";
+        feedback.innerText = `¡Bien! Dijiste: "${cleanTranscript}" 🎉`;
         feedback.classList.add('correct');
+        playTone(true);
+        confetti({ particleCount: 50 });
 
-        confetti({
-            particleCount: 80,
-            spread: 70,
-            origin: { y: 0.8 }
-        });
+        $('btn-next-round').classList.remove('hidden');
     } else {
-        feedback.innerText = `Incorrecto. La respuesta era: ${state.game.currentPoint.name}`;
+        feedback.innerText = `Dijiste: "${cleanTranscript}". ¡Mal! Era: ${correctName}`;
         feedback.classList.add('wrong');
+        playTone(false);
+        $('btn-next-round').classList.remove('hidden');
     }
-
-    input.disabled = true;
-    $('btn-submit-name').disabled = true;
-    $('btn-next-round').classList.remove('hidden');
+    btn.disabled = true;
 }
 
 function nextRound() {
@@ -937,50 +1067,13 @@ function endGame() {
     $('final-score').innerText = state.game.score;
     $('total-rounds').innerText = state.game.shuffledPoints.length;
 
-    // Celebration
     if (state.game.score > 0) {
-        var duration = 3 * 1000;
-        var end = Date.now() + duration;
-
-        (function frame() {
-            confetti({
-                particleCount: 5,
-                angle: 60,
-                spread: 55,
-                origin: { x: 0 },
-                colors: ['#6366f1', '#ec4899', '#10b981']
-            });
-            confetti({
-                particleCount: 5,
-                angle: 120,
-                spread: 55,
-                origin: { x: 1 },
-                colors: ['#6366f1', '#ec4899', '#10b981']
-            });
-
-            if (Date.now() < end) {
-                requestAnimationFrame(frame);
-            }
-        }());
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
     }
 }
 
-// Helper: Custom Icons (using Leaflet default filtering logic or just hue-rotate for simplicity via CSS? No, easier to use Leaflet API if I had images. 
-// Actually, default leaflet marker is blue. I can't easily change color without custom images.
-// I will use CSS filters on the .leaflet-marker-icon class if I add a class, OR simpler:
-// Use a colored DivIcon or a filter.
 function getIcon(color) {
-    // Basic trick: use a filter on the default image URL 
-    // But since we can't easily modify the default Icon object instance color, 
-    // let's just make a simple distinction.
-
-    // Better: use L.divIcon with a colored emoji or circle.
-    // OR: use the standard hack for colors via hue-rotate in CSS, but that applies to class.
-
-    // Let's use a simple DivIcon for colored markers to avoid complex image assets
-
     let cssColor = color === 'green' ? '#22c55e' : '#ef4444';
-
     return L.divIcon({
         className: 'custom-pin',
         html: `<div style="
