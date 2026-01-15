@@ -243,7 +243,11 @@ function renderSetsList() {
         div.innerHTML = `
             <h3>${set.name}</h3>
             <p>${set.points ? set.points.length : 0} ubicaciones</p>
-            ${deleteBtn}
+            <div class="card-actions">
+                ${state.auth.user && set.ownerId === state.auth.user.id ?
+                `<button class="mini-btn" onclick="editSet(event, '${set.id}')">✎ Editar</button>` : ''}
+                ${deleteBtn}
+            </div>
              <div style="margin-top:auto; font-size:0.8rem; color:var(--text-muted); opacity:0.6;">
                  De: ${(set.ownerEmail || 'Anónimo').replace('@geoquiz.app', '')}
             </div>
@@ -253,6 +257,31 @@ function renderSetsList() {
         };
         container.appendChild(div);
     });
+}
+
+function editSet(e, id) {
+    if (e) e.stopPropagation();
+    const set = state.sets.find(s => s.id === id);
+    if (!set) return;
+
+    state.currentSet = JSON.parse(JSON.stringify(set)); // Deep copy to avoid mutating list directly
+    state.editorMarkers = [];
+    state.tempMarker = null;
+
+    // Ensure mode defaults
+    if (!state.currentSet.mode) state.currentSet.mode = 'world';
+
+    // Reuse 'fromBackup' flag (true) to skip initialization blank state
+    initEditor(set.name, true);
+
+    // Restore markers
+    // initEditor calls initMapForEditor which resets the map. We add markers after.
+    setTimeout(() => {
+        state.currentSet.points.forEach(p => {
+            const m = L.marker([p.lat, p.lng]).addTo(editorMap).bindPopup(p.name);
+            state.editorMarkers.push(m);
+        });
+    }, 100); // Small delay to ensure map init
 }
 
 function deleteSet(e, id) {
@@ -671,7 +700,14 @@ async function finalizeSet() {
     };
 
     try {
-        await window.firebase.addDoc(window.firebase.collection(db, "sets"), payload);
+        if (state.currentSet.id) {
+            // UPDATE existing set
+            await window.firebase.setDoc(window.firebase.doc(db, "sets", state.currentSet.id), payload);
+        } else {
+            // CREATE new set
+            await window.firebase.addDoc(window.firebase.collection(db, "sets"), payload);
+        }
+
         localStorage.removeItem(EDITOR_BACKUP_KEY); // Clear backup
 
         Swal.fire({
@@ -951,7 +987,7 @@ function setupModeGeoShow(point) {
     // Zoom/Pan
     gameMap.flyTo([point.lat, point.lng], zoomLevel, {
         animate: true,
-        duration: 2.0 // Slower, smoother translation
+        duration: 0.5 // Faster transition
     });
 
     // Start listening immediately (during transition)
@@ -1061,13 +1097,13 @@ function checkVoiceAnswer(transcript) {
         playTone(true);
         confetti({ particleCount: 50 });
 
-        setTimeout(() => nextRound(), 3000);
+        setTimeout(() => nextRound(), 500);
     } else {
         feedback.innerText = `Dijiste: "${cleanTranscript}". ¡Mal! Era: ${correctName}`;
         feedback.classList.add('wrong');
         playTone(false);
 
-        setTimeout(() => nextRound(), 4000);
+        setTimeout(() => nextRound(), 500);
     }
     // $('btn-next-round').classList.remove('hidden'); // No manual next needed
     btn.disabled = true;
