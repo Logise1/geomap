@@ -446,6 +446,13 @@ button {
     border-radius: 20px;
     text-align: center;
     animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+    background: rgba(15, 23, 42, 0.95);
+    /* Darker and more opaque */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    /* Stronger shadow */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: none;
+    /* Remove blur if requested, or keep it subtle. User didn't like "translucent effect". */
 }
 
 /* Editor Inputs */
