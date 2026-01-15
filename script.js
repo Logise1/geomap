@@ -746,7 +746,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     recognition = new SpeechRecognition();
     recognition.lang = 'es-ES';
     recognition.continuous = true;
-    recognition.interimResults = false;
+    recognition.interimResults = true;
 }
 
 // Tone.js Synth
@@ -873,6 +873,9 @@ function initGameMap() {
         setTimeout(() => {
             if (gameMap) gameMap.invalidateSize();
         }, 100);
+        setTimeout(() => {
+            if (gameMap) gameMap.invalidateSize();
+        }, 500);
     });
 }
 
@@ -1004,9 +1007,10 @@ function startListening() {
 
     // Setup events (always update handlers)
     recognition.onresult = (event) => {
-        const lastIndex = event.results.length - 1;
-        const transcript = event.results[lastIndex][0].transcript;
-        checkVoiceAnswer(transcript);
+        const lastResult = event.results[event.results.length - 1];
+        const transcript = lastResult[0].transcript;
+        const isFinal = lastResult.isFinal;
+        checkVoiceAnswer(transcript, isFinal);
     };
 
     recognition.onerror = (event) => {
@@ -1078,11 +1082,8 @@ function levenshteinDistance(a, b) {
 
 const stateLock = { processing: false };
 
-function checkVoiceAnswer(transcript) {
+function checkVoiceAnswer(transcript, isFinal) {
     if (stateLock.processing) return;
-
-    // Don't disable mic or remove UI class for continuous mode
-    // const btn = $('btn-mic');
 
     const correctName = state.game.currentPoint.name;
 
@@ -1106,10 +1107,12 @@ function checkVoiceAnswer(transcript) {
 
     const feedback = $('feedback-show');
 
+    // If matches, we win immediately (even if interim)
     if (isCorrect) {
         stateLock.processing = true;
         state.game.score++;
         feedback.innerText = `¡Bien! Dijiste: "${cleanTranscript}" 🎉`;
+        feedback.classList.remove('wrong');
         feedback.classList.add('correct');
         playTone(true);
         confetti({ particleCount: 50 });
@@ -1117,20 +1120,23 @@ function checkVoiceAnswer(transcript) {
         setTimeout(() => {
             stateLock.processing = false;
             nextRound();
-        }, 500);
-    } else {
-        stateLock.processing = true;
-        feedback.innerText = `Dijiste: "${cleanTranscript}". ¡Mal! Era: ${correctName}`;
+        }, 1000);
+        return;
+    }
+
+    // If not correct yet...
+    if (isFinal) {
+        // Only if it's the final result do we say "Incorrect"
+        // And we DO NOT move to next round, allowing retry.
+
+        feedback.innerText = `Incorrecto. Inténtalo de nuevo.`;
+        feedback.classList.remove('correct');
         feedback.classList.add('wrong');
         playTone(false);
 
-        setTimeout(() => {
-            stateLock.processing = false;
-            nextRound();
-        }, 500);
+        // We do NOT set stateLock.processing = true, so they can keep trying immediately
     }
-    // $('btn-next-round').classList.remove('hidden'); // No manual next needed
-    // btn.disabled = true; // KEEP LISTENING
+    // If interim and not correct, do nothing (wait for more speech)
 }
 
 function nextRound() {
