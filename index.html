@@ -8,7 +8,9 @@
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -137,79 +139,76 @@
                 </div>
             </div>
         </div>
-    </div>
-    </div>
 
-    <!-- Game Mode Selection View -->
-    <div id="game-setup" class="view">
-        <header class="header">
-            <button id="btn-setup-back" class="btn icon-btn">←</button>
-            <h1>Elegir Modo de Juego</h1>
-        </header>
-        <div class="mode-cards">
-            <div class="card mode-card" data-mode="find-loc">
-                <h3>📍 Encuentra el Punto</h3>
-                <p>Te damos un nombre, tú encuentras el marcador correcto en el mapa.</p>
-            </div>
-            <div class="card mode-card" data-mode="name-loc">
-                <h3>🏷️ Nombra el Lugar</h3>
-                <p>Te mostramos un punto, tú escribes cómo se llama.</p>
+        <!-- Game Mode Selection View -->
+        <div id="game-setup" class="view">
+            <header class="header">
+                <button id="btn-setup-back" class="btn icon-btn">←</button>
+                <h1>Elegir Modo de Juego</h1>
+            </header>
+            <div class="mode-cards">
+                <div class="card mode-card" data-mode="find-loc">
+                    <h3>📍 Encuentra el Punto</h3>
+                    <p>Te damos un nombre, tú encuentras el marcador correcto en el mapa.</p>
+                </div>
+                <div class="card mode-card" data-mode="name-loc">
+                    <h3>🏷️ Nombra el Lugar</h3>
+                    <p>Te mostramos un punto, tú escribes cómo se llama.</p>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Game View -->
-    <div id="game" class="view">
-        <div class="map-container">
-            <div id="game-map" class="map"></div>
+        <!-- Game View -->
+        <div id="game" class="view">
+            <div class="map-container">
+                <div id="game-map" class="map"></div>
 
-            <div class="ui-overlay top-left">
-                <button id="btn-game-exit" class="btn icon-btn">Salir</button>
-            </div>
-
-            <div class="ui-overlay top-center">
-                <div class="game-status">
-                    <span id="game-progress">1 / 5</span>
-                </div>
-            </div>
-
-            <!-- Game UI: Question/Interaction Area -->
-            <div class="ui-overlay bottom-panel game-panel">
-
-                <!-- Mode 1: Find location prompt -->
-                <div id="prompt-find" class="game-prompt hidden">
-                    <p>Encuentra:</p>
-                    <h2 id="target-name">Madrid</h2>
-                    <div class="feedback-msg" id="feedback-find"></div>
+                <div class="ui-overlay top-left">
+                    <button id="btn-game-exit" class="btn icon-btn">Salir</button>
                 </div>
 
-                <!-- Mode 2: Input name prompt -->
-                <div id="prompt-input" class="game-prompt hidden">
-                    <p>¿Qué lugar es este?</p>
-                    <div class="input-group">
-                        <input type="text" id="game-input-name" placeholder="Escribe el nombre...">
-                        <button id="btn-submit-name" class="btn primary">Enviar</button>
+                <div class="ui-overlay top-center">
+                    <div class="game-status">
+                        <span id="game-progress">1 / 5</span>
                     </div>
-                    <div class="feedback-msg" id="feedback-input"></div>
                 </div>
 
-                <!-- Results / Next Button -->
-                <button id="btn-next-round" class="btn secondary hidden">Siguiente →</button>
+                <!-- Game UI: Question/Interaction Area -->
+                <div class="ui-overlay bottom-panel game-panel">
+
+                    <!-- Mode 1: Find location prompt -->
+                    <div id="prompt-find" class="game-prompt hidden">
+                        <p>Encuentra:</p>
+                        <h2 id="target-name">Madrid</h2>
+                        <div class="feedback-msg" id="feedback-find"></div>
+                    </div>
+
+                    <!-- Mode 2: Input name prompt -->
+                    <div id="prompt-input" class="game-prompt hidden">
+                        <p>¿Qué lugar es este?</p>
+                        <div class="input-group">
+                            <input type="text" id="game-input-name" placeholder="Escribe el nombre...">
+                            <button id="btn-submit-name" class="btn primary">Enviar</button>
+                        </div>
+                        <div class="feedback-msg" id="feedback-input"></div>
+                    </div>
+
+                    <!-- Results / Next Button -->
+                    <button id="btn-next-round" class="btn secondary hidden">Siguiente →</button>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Results View -->
-    <div id="results" class="view">
-        <div class="results-content">
-            <h1>¡Juego Terminado!</h1>
-            <div class="score-display">
-                <span id="final-score">0</span> / <span id="total-rounds">0</span> Aciertos
+        <!-- Results View -->
+        <div id="results" class="view">
+            <div class="results-content">
+                <h1>¡Juego Terminado!</h1>
+                <div class="score-display">
+                    <span id="final-score">0</span> / <span id="total-rounds">0</span> Aciertos
+                </div>
+                <button id="btn-home" class="btn primary">Volver al Inicio</button>
             </div>
-            <button id="btn-home" class="btn primary">Volver al Inicio</button>
         </div>
-    </div>
-
     </div>
 
     <script src="script.js"></script>

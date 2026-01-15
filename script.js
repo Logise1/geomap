@@ -65,8 +65,14 @@ const firebaseConfig = {
 const $ = (id) => document.getElementById(id);
 const hideAllViews = () => document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
 const showView = (id) => {
+    console.log(`Showing view: ${id}`);
     hideAllViews();
-    $(id).classList.add('active');
+    const el = $(id);
+    if (el) {
+        el.classList.add('active');
+    } else {
+        console.error(`View not found: ${id}`);
+    }
 };
 const getId = () => Date.now().toString(36) + Math.random().toString(36).substr(2);
 
@@ -319,55 +325,128 @@ function initEventListeners() {
 // CREATOR LOGIC
 // ----------------------
 
+const YYF_URL = 'https://yyf.mubilop.com';
+
+async function uploadToYYF(file) {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+
+    const response = await fetch(`${YYF_URL}/api/upload`, {
+        method: 'POST',
+        body: formData
+    });
+
+    if (!response.ok) throw new Error('Upload failed');
+    const result = await response.json();
+    return YYF_URL + result.fileUrl;
+}
+
 function startCreator() {
     Swal.fire({
-        title: 'Nombre del nuevo Set',
-        input: 'text',
-        inputPlaceholder: 'Ej. Capitales de Europa',
-        showCancelButton: true,
-        confirmButtonText: 'Crear',
-        preConfirm: (name) => {
-            if (!name) Swal.showValidationMessage('Introduce un nombre');
-            return name;
+        title: 'Crear Nuevo Set',
+        html: `
+            <input id="swal-input-name" class="swal2-input" placeholder="Nombre del Set">
+            <select id="swal-input-type" class="swal2-input" style="margin-top: 15px;">
+                <option value="world">Mapa del Mundo (Leaflet)</option>
+                <option value="image">Subir Imagen (Plano/Ficción)</option>
+            </select>
+            <div id="swal-upload-container" style="display:none; margin-top: 15px;">
+                <label style="display:block; margin-bottom:5px;">Sube tu mapa:</label>
+                <input type="file" id="swal-input-file" accept="image/*" class="swal2-file">
+            </div>
+        `,
+        focusConfirm: false,
+        didOpen: () => {
+            const typeSelect = document.getElementById('swal-input-type');
+            const uploadDiv = document.getElementById('swal-upload-container');
+            typeSelect.onchange = () => {
+                uploadDiv.style.display = typeSelect.value === 'image' ? 'block' : 'none';
+            };
+        },
+        preConfirm: () => {
+            const name = document.getElementById('swal-input-name').value;
+            const type = document.getElementById('swal-input-type').value;
+            const fileInput = document.getElementById('swal-input-file');
+
+            if (!name) {
+                Swal.showValidationMessage('Escribe un nombre para el set');
+                return false;
+            }
+            if (type === 'image') {
+                if (fileInput.files.length === 0) {
+                    Swal.showValidationMessage('Debes seleccionar una imagen');
+                    return false;
+                }
+                return { name, type, file: fileInput.files[0] };
+            }
+            return { name, type };
         }
-    }).then((result) => {
+    }).then(async (result) => {
         if (result.isConfirmed) {
-            initEditor(result.value);
+            const { name, type, file } = result.value;
+
+            if (type === 'image') {
+                Swal.fire({
+                    title: 'Subiendo mapa...',
+                    text: 'Por favor espera',
+                    allowOutsideClick: false,
+                    didOpen: () => Swal.showLoading()
+                });
+
+                try {
+                    const imageUrl = await uploadToYYF(file);
+                    Swal.close();
+                    initEditor(name, false, { mode: 'image', imageUrl });
+                } catch (e) {
+                    console.error(e);
+                    Swal.fire('Error', 'Falló la subida de la imagen. Inténtalo de nuevo.', 'error');
+                }
+            } else {
+                initEditor(name, false, { mode: 'world' });
+            }
         }
     });
 }
 
 const EDITOR_BACKUP_KEY = 'geo_editor_backup';
 
-function initEditor(setName, fromBackup = false) {
+function initEditor(setName, fromBackup = false, options = {}) {
     if (!fromBackup) {
         // Check for backup
         const backup = localStorage.getItem(EDITOR_BACKUP_KEY);
         if (backup) {
             try {
                 const data = JSON.parse(backup);
-                if (data.points && data.points.length > 0) {
+                // Simple validation
+                if (data.name) {
                     Swal.fire({
                         title: 'Restaurar sesión',
-                        text: `Tenías un set sin guardar: "${data.name}" con ${data.points.length} puntos.`,
+                        text: `Tenías un set sin guardar: "${data.name}"`,
                         icon: 'info',
                         showCancelButton: true,
                         confirmButtonText: 'Restaurar',
                         cancelButtonText: 'Descartar'
                     }).then((res) => {
                         if (res.isConfirmed) {
-                            initEditor(data.name, true);
                             state.currentSet = data;
+                            // Ensure valid object structure
+                            if (!state.currentSet.mode) state.currentSet.mode = 'world';
+
+                            initEditor(data.name, true);
+
                             // Restore markers
-                            data.points.forEach(p => {
+                            // Wait for map to be ready? initMapForEditor is synchronous generally but image loading validiation might delay bounds
+                            // But for marker placement, we just need the map object.
+                            state.currentSet.points.forEach(p => {
                                 const m = L.marker([p.lat, p.lng]).addTo(editorMap).bindPopup(p.name);
                                 state.editorMarkers.push(m);
                             });
+
                             $('editor-set-name').innerText = data.name;
                             renderEditorList();
                         } else {
                             localStorage.removeItem(EDITOR_BACKUP_KEY);
-                            initEditor(setName, true);
+                            initEditor(setName, false, options);
                         }
                     });
                     return; // Wait for user choice
@@ -376,40 +455,74 @@ function initEditor(setName, fromBackup = false) {
         }
     }
 
-    state.currentSet = {
-        name: setName,
-        points: []
-    };
-    state.editorMarkers = [];
-    state.tempMarker = null;
+    if (!fromBackup) {
+        state.currentSet = {
+            name: setName,
+            points: [],
+            mode: options.mode || 'world',
+            imageUrl: options.imageUrl || null
+        };
+        state.editorMarkers = [];
+        state.tempMarker = null;
+    }
 
     showView('editor');
-    $('editor-set-name').innerText = setName;
-    // $('point-count').innerText = '0'; // Handled by renderEditorList
+    $('editor-set-name').innerText = state.currentSet.name;
 
     renderEditorList();
     $('point-name-input').value = '';
     $('point-name-input').disabled = true;
     $('btn-add-point').disabled = true;
 
-    // Init Leaflet map if not exists
-    if (!editorMap) {
+    initMapForEditor();
+}
+
+function initMapForEditor() {
+    // If map exists, completely remove it to reset CRS and layers
+    if (editorMap) {
+        editorMap.remove();
+        editorMap = null;
+    }
+
+    const isImageMode = state.currentSet.mode === 'image';
+
+    if (isImageMode) {
+        // Custom Image Map
         editorMap = L.map('editor-map', {
-            layers: [tileLayers["Callejero"]] // Default layer
+            crs: L.CRS.Simple, // Coordinate system for flat images
+            minZoom: -2,
+            maxZoom: 4,
+            zoomControl: true
+        });
+
+        const url = state.currentSet.imageUrl;
+        const img = new Image();
+        img.onload = () => {
+            const w = img.width;
+            const h = img.height;
+            const bounds = [[0, 0], [h, w]]; // Leaflet uses [y, x] for simple CRS sometimes, but actually [lat, lng] -> [y, x]
+
+            L.imageOverlay(url, bounds).addTo(editorMap);
+            editorMap.fitBounds(bounds);
+            editorMap.setMaxBounds(bounds);
+            editorMap.setView([h / 2, w / 2], 0);
+        };
+        img.src = url;
+
+    } else {
+        // Standard World Map
+        editorMap = L.map('editor-map', {
+            layers: [tileLayers["Callejero"]],
+            zoomControl: true
         }).setView([20, 0], 2);
 
         L.control.layers(tileLayers).addTo(editorMap);
-
-        editorMap.on('click', onEditorMapClick);
-    } else {
-        // Clear old layers
-        editorMap.eachLayer((layer) => {
-            if (layer instanceof L.Marker) editorMap.removeLayer(layer);
-        });
-        editorMap.setView([20, 0], 2);
     }
 
-    // Force strict resize check to fix "gray map" issues
+    // Common event listeners
+    editorMap.on('click', onEditorMapClick);
+
+    // Resize fix
     setTimeout(() => {
         editorMap.invalidateSize();
     }, 200);
@@ -556,6 +669,8 @@ async function finalizeSet() {
     const payload = {
         name: state.currentSet.name,
         points: state.currentSet.points,
+        mode: state.currentSet.mode || 'world',
+        imageUrl: state.currentSet.imageUrl || null,
         ownerId: state.auth.user.id,
         ownerEmail: state.auth.user.email
     };
@@ -612,16 +727,45 @@ function startGame(mode) {
 }
 
 function initGameMap() {
-    if (!gameMap) {
+    if (gameMap) {
+        gameMap.remove();
+        gameMap = null;
+    }
+
+    const isImageMode = state.currentSet.mode === 'image';
+
+    if (isImageMode) {
+        // Custom Image Map
+        gameMap = L.map('game-map', {
+            crs: L.CRS.Simple,
+            minZoom: -2,
+            maxZoom: 4,
+            zoomControl: false,
+            attributionControl: false
+        });
+
+        const url = state.currentSet.imageUrl;
+        const img = new Image();
+        img.onload = () => {
+            const w = img.width;
+            const h = img.height;
+            const bounds = [[0, 0], [h, w]];
+
+            L.imageOverlay(url, bounds).addTo(gameMap);
+            gameMap.fitBounds(bounds);
+            gameMap.setMaxBounds(bounds);
+            gameMap.setView([h / 2, w / 2], 0);
+        };
+        img.src = url;
+
+    } else {
+        // Standard World Map
         gameMap = L.map('game-map', {
             zoomControl: false,
             layers: [tileLayers["Callejero"]]
         }).setView([20, 0], 2);
 
-        L.control.layers(tileLayers).addTo(gameMap); // Users want to choose layer in game too
-    } else {
-        // Clear all previous markers
-        gameMap.setView([20, 0], 2);
+        L.control.layers(tileLayers).addTo(gameMap);
     }
 
     setTimeout(() => gameMap.invalidateSize(), 200);
@@ -734,11 +878,11 @@ function setupModeName(point) {
     // Show ONLY target marker? Or all? 
     // "te dice el punto" implies singular. Let's just show the specific target point.
     // This avoids confusion "Which one am I naming?"
-    // This avoids confusion "Which one am I naming?"
     const marker = L.marker([point.lat, point.lng]).addTo(gameMap);
 
     // Smooth Fly Animation
-    gameMap.flyTo([point.lat, point.lng], 6, {
+    const zoomLevel = state.currentSet.mode === 'image' ? 2 : 6;
+    gameMap.flyTo([point.lat, point.lng], zoomLevel, {
         animate: true,
         duration: 1.5
     });
