@@ -745,7 +745,7 @@ if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRecognition();
     recognition.lang = 'es-ES';
-    recognition.continuous = false;
+    recognition.continuous = true;
     recognition.interimResults = false;
 }
 
@@ -1002,32 +1002,44 @@ function startListening() {
     const btn = $('btn-mic');
     const indicator = $('listening-indicator');
 
+    // Setup events (always update handlers)
+    recognition.onresult = (event) => {
+        const lastIndex = event.results.length - 1;
+        const transcript = event.results[lastIndex][0].transcript;
+        checkVoiceAnswer(transcript);
+    };
+
+    recognition.onerror = (event) => {
+        console.error("STT Error", event.error);
+        if (event.error === 'not-allowed') {
+            btn.classList.remove('listening');
+            indicator.classList.add('hidden');
+            Swal.fire('Permiso denegado', 'Permite el uso del micrófono.', 'warning');
+        }
+        // Don't stop continuous on other errors if possible, or let onend handle it
+    };
+
+    recognition.onend = () => {
+        // Auto-restart if in Geo Show mode and not finished
+        if (state.game.mode === 'geo-show' && document.getElementById('game').classList.contains('active')) {
+            try {
+                recognition.start();
+            } catch (e) { /* ignore */ }
+        } else {
+            btn.classList.remove('listening');
+            indicator.classList.add('hidden');
+        }
+    };
+
     try {
         recognition.start();
         btn.classList.add('listening');
         indicator.classList.remove('hidden');
-
-        recognition.onresult = (event) => {
-            const transcript = event.results[0][0].transcript;
-            checkVoiceAnswer(transcript);
-        };
-
-        recognition.onerror = (event) => {
-            console.error("STT Error", event.error);
-            btn.classList.remove('listening');
-            indicator.classList.add('hidden');
-            if (event.error === 'not-allowed') {
-                Swal.fire('Permiso denegado', 'Permite el uso del micrófono.', 'warning');
-            }
-        };
-
-        recognition.onend = () => {
-            btn.classList.remove('listening');
-            indicator.classList.add('hidden');
-        };
     } catch (e) {
-        // already started?
-        console.log("Recognition already active");
+        // Recognition already active
+        // Ensure UI matches state
+        btn.classList.add('listening');
+        indicator.classList.remove('hidden');
     }
 }
 
@@ -1064,9 +1076,13 @@ function levenshteinDistance(a, b) {
     return matrix[b.length][a.length];
 }
 
+const stateLock = { processing: false };
+
 function checkVoiceAnswer(transcript) {
-    const btn = $('btn-mic');
-    btn.classList.remove('listening');
+    if (stateLock.processing) return;
+
+    // Don't disable mic or remove UI class for continuous mode
+    // const btn = $('btn-mic');
 
     const correctName = state.game.currentPoint.name;
 
@@ -1091,22 +1107,30 @@ function checkVoiceAnswer(transcript) {
     const feedback = $('feedback-show');
 
     if (isCorrect) {
+        stateLock.processing = true;
         state.game.score++;
         feedback.innerText = `¡Bien! Dijiste: "${cleanTranscript}" 🎉`;
         feedback.classList.add('correct');
         playTone(true);
         confetti({ particleCount: 50 });
 
-        setTimeout(() => nextRound(), 500);
+        setTimeout(() => {
+            stateLock.processing = false;
+            nextRound();
+        }, 500);
     } else {
+        stateLock.processing = true;
         feedback.innerText = `Dijiste: "${cleanTranscript}". ¡Mal! Era: ${correctName}`;
         feedback.classList.add('wrong');
         playTone(false);
 
-        setTimeout(() => nextRound(), 500);
+        setTimeout(() => {
+            stateLock.processing = false;
+            nextRound();
+        }, 500);
     }
     // $('btn-next-round').classList.remove('hidden'); // No manual next needed
-    btn.disabled = true;
+    // btn.disabled = true; // KEEP LISTENING
 }
 
 function nextRound() {
