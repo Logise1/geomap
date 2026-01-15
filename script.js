@@ -781,7 +781,103 @@ async function startGame(mode) {
     startRound();
 }
 
-// ... initGameMap ...
+function initGameMap() {
+    return new Promise((resolve, reject) => {
+        // Cleanup existing map
+        if (gameMap) {
+            gameMap.remove();
+            gameMap = null;
+        }
+
+        const isImageMode = state.currentSet.mode === 'image';
+
+        if (isImageMode) {
+            // IMAGE Custom Map
+            gameMap = L.map('game-map', {
+                crs: L.CRS.Simple,
+                minZoom: -2,
+                maxZoom: 4,
+                zoomControl: true,
+                attributionControl: false
+            });
+
+            const url = state.currentSet.imageUrl;
+            const img = new Image();
+
+            img.onload = () => {
+                const w = img.width;
+                const h = img.height;
+                const bounds = [[0, 0], [h, w]];
+
+                L.imageOverlay(url, bounds).addTo(gameMap);
+                gameMap.fitBounds(bounds);
+                gameMap.setMaxBounds(bounds);
+
+                resolve();
+            };
+
+            img.onerror = () => reject(new Error("Failed to load map image"));
+            img.src = url;
+
+        } else {
+            // WORLD Map
+            gameMap = L.map('game-map', {
+                layers: [tileLayers["Callejero"]], // Default layer
+                zoomControl: true,
+                attributionControl: false
+            }).setView([20, 0], 2);
+
+            // Optional: Add layer control if desired in game
+            // L.control.layers(tileLayers).addTo(gameMap);
+
+            resolve();
+        }
+
+        // Force resize update
+        setTimeout(() => {
+            if (gameMap) gameMap.invalidateSize();
+        }, 100);
+    });
+}
+
+function startRound() {
+    // Check if game is over
+    if (state.game.round >= state.game.shuffledPoints.length) {
+        endGame();
+        return;
+    }
+
+    // Get current target
+    state.game.currentPoint = state.game.shuffledPoints[state.game.round];
+    const point = state.game.currentPoint;
+
+    // Update UI Progress
+    const total = state.game.shuffledPoints.length;
+    const current = state.game.round + 1;
+    if ($('game-progress')) $('game-progress').innerText = `${current} / ${total}`;
+
+    // Clear previous markers
+    if (state.game.markers && state.game.markers.length > 0) {
+        state.game.markers.forEach(m => gameMap.removeLayer(m));
+    }
+    state.game.markers = [];
+
+    // Reset Feedback UI
+    document.querySelectorAll('.feedback-msg').forEach(el => {
+        el.innerText = '';
+        el.className = 'feedback-msg';
+        // Note: keeping base class, removing 'correct'/'wrong'
+    });
+
+    if ($('btn-next-round')) $('btn-next-round').classList.add('hidden');
+
+    // Route to mode setup
+    if (state.game.mode === 'find-loc') {
+        setupModeFind(point);
+    } else if (state.game.mode === 'geo-show') {
+        setupModeGeoShow(point);
+    }
+}
 
 // MODE 1: FIND LOCATION
 function setupModeFind(point) {
