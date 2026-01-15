@@ -825,6 +825,12 @@ function initGameMap() {
             gameMap = null;
         }
 
+        const container = document.getElementById('game-map');
+        if (container) {
+            container._leaflet_id = null; // Clear Leaflet ID if stuck
+            container.innerHTML = ''; // Force clear
+        }
+
         const isImageMode = state.currentSet.mode === 'image';
 
         if (isImageMode) {
@@ -849,7 +855,11 @@ function initGameMap() {
                 gameMap.fitBounds(bounds);
                 gameMap.setMaxBounds(bounds);
 
-                resolve();
+                // Wait for view animation (400ms) + buffer
+                setTimeout(() => {
+                    gameMap.invalidateSize();
+                    resolve();
+                }, 500);
             };
 
             img.onerror = () => reject(new Error("Failed to load map image"));
@@ -863,19 +873,12 @@ function initGameMap() {
                 attributionControl: false
             }).setView([20, 0], 2);
 
-            // Optional: Add layer control if desired in game
-            // L.control.layers(tileLayers).addTo(gameMap);
-
-            resolve();
+            // Wait for view animation (400ms) + buffer
+            setTimeout(() => {
+                gameMap.invalidateSize();
+                resolve();
+            }, 500);
         }
-
-        // Force resize update
-        setTimeout(() => {
-            if (gameMap) gameMap.invalidateSize();
-        }, 100);
-        setTimeout(() => {
-            if (gameMap) gameMap.invalidateSize();
-        }, 500);
     });
 }
 
@@ -909,6 +912,8 @@ function startRound() {
     });
 
     if ($('btn-next-round')) $('btn-next-round').classList.add('hidden');
+
+    state.game.roundStartTime = Date.now();
 
     // Route to mode setup
     if (state.game.mode === 'find-loc') {
@@ -1085,29 +1090,44 @@ const stateLock = { processing: false };
 function checkVoiceAnswer(transcript, isFinal) {
     if (stateLock.processing) return;
 
+    if (!transcript || transcript.trim().length < 2) return;
+
+    // --- NON-BLOCKING CHECKS (Run before grace period) ---
     const correctName = state.game.currentPoint.name;
-
-    // Deduplicate consecutive words
-    const cleanTranscript = transcript.replace(/\b(\w+)\s+\1\b/gi, '$1');
-
+    const cleanTranscript = transcript.replace(/\b(\w+)\s+\1\b/gi, '$1'); // Deduplicate
     const normalizedTranscript = normalizeString(cleanTranscript);
     const normalizedTarget = normalizeString(correctName);
 
-    // Calculate tolerance based on string length
+    // 1. Check "PASAR" Command (Instant)
+    if (normalizedTranscript === 'pasar') {
+        stateLock.processing = true;
+        const feedback = $('feedback-show');
+        feedback.innerText = "↺ Saltado. Volverá al final.";
+        feedback.className = 'feedback-msg'; // neutral
+
+        // Add current point to the end of the queue
+        state.game.shuffledPoints.push(state.game.currentPoint);
+
+        setTimeout(() => {
+            stateLock.processing = false;
+            nextRound();
+        }, 500); // Faster transition for skip (0.5s)
+        return;
+    }
+
+    // 2. Check CORRECT Answer (Instant)
     const distance = levenshteinDistance(normalizedTranscript, normalizedTarget);
     let tolerance = 0;
     if (normalizedTarget.length > 3) tolerance = 1;
     if (normalizedTarget.length > 6) tolerance = 2;
     if (normalizedTarget.length > 10) tolerance = 3;
 
-    // Fuzzy check 
     const isCorrect = normalizedTranscript === normalizedTarget ||
         (normalizedTarget.length > 3 && normalizedTranscript.includes(normalizedTarget)) ||
         distance <= tolerance;
 
     const feedback = $('feedback-show');
 
-    // If matches, we win immediately (even if interim)
     if (isCorrect) {
         stateLock.processing = true;
         state.game.score++;
@@ -1124,19 +1144,19 @@ function checkVoiceAnswer(transcript, isFinal) {
         return;
     }
 
-    // If not correct yet...
-    if (isFinal) {
-        // Only if it's the final result do we say "Incorrect"
-        // And we DO NOT move to next round, allowing retry.
+    // --- GRACE PERIOD FILTER for Incorrect/Noise ---
+    // User requested 1.5s grace period where incorrect/noise is ignored
+    if (state.game.roundStartTime && (Date.now() - state.game.roundStartTime < 1500)) {
+        return;
+    }
 
+    // 3. Incorrect (Only if final)
+    if (isFinal) {
         feedback.innerText = `Incorrecto. Inténtalo de nuevo.`;
         feedback.classList.remove('correct');
         feedback.classList.add('wrong');
         playTone(false);
-
-        // We do NOT set stateLock.processing = true, so they can keep trying immediately
     }
-    // If interim and not correct, do nothing (wait for more speech)
 }
 
 function nextRound() {
