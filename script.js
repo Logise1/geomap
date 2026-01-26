@@ -116,8 +116,7 @@ async function loadSets() {
     if (!state.auth.user || !db) return;
     try {
         const q = window.firebase.query(
-            window.firebase.collection(db, "sets"),
-            window.firebase.where("ownerId", "==", state.auth.user.id)
+            window.firebase.collection(db, "sets")
         );
 
         const querySnapshot = await window.firebase.getDocs(q);
@@ -264,6 +263,11 @@ function editSet(e, id) {
     const set = state.sets.find(s => s.id === id);
     if (!set) return;
 
+    if (set.ownerId !== state.auth.user.id) {
+        Swal.fire('Acceso denegado', 'Solo puedes editar tus propios sets', 'error');
+        return;
+    }
+
     state.currentSet = JSON.parse(JSON.stringify(set)); // Deep copy to avoid mutating list directly
     state.editorMarkers = [];
     state.tempMarker = null;
@@ -286,6 +290,11 @@ function editSet(e, id) {
 
 function deleteSet(e, id) {
     e.stopPropagation();
+    const set = state.sets.find(s => s.id === id);
+    if (!set || set.ownerId !== state.auth.user.id) {
+        Swal.fire('Acceso denegado', 'Solo puedes borrar tus propios sets', 'error');
+        return;
+    }
     Swal.fire({
         title: '¿Estás seguro?',
         text: "No podrás revertir esto",
