@@ -25,13 +25,29 @@
 
 body {
     font-family: var(--font-family);
-    background: linear-gradient(135deg, #4c1d95 0%, #0f172a 100%);
+    background: linear-gradient(-45deg, #1e1b4b, #0f172a, #312e81, #1e1b4b);
+    background-size: 400% 400%;
+    animation: bgGradient 15s ease infinite;
     color: var(--text-main);
     overflow: hidden;
     height: 100vh;
     width: 100vw;
     position: relative;
     z-index: 1;
+}
+
+@keyframes bgGradient {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 body::before,
@@ -77,6 +93,12 @@ button {
 }
 
 /* Animations */
+@keyframes textShine {
+    to {
+        background-position: 200% center;
+    }
+}
+
 @keyframes fadeInScale {
     0% {
         opacity: 0;
@@ -192,10 +214,13 @@ button {
 .header h1 {
     font-size: 4rem;
     margin-bottom: 0.5rem;
-    /* Removed background which was creating a box */
-    color: white;
-    text-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
-    /* Fun chunky shadow instead of clip */
+    background: linear-gradient(135deg, #f472b6 0%, #8b5cf6 50%, #3b82f6 100%);
+    background-size: 200% auto;
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: textShine 5s linear infinite;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
     letter-spacing: 1px;
     line-height: 1.2;
     padding: 10px;
@@ -249,25 +274,26 @@ button {
 }
 
 .btn.primary {
-    background: #8b5cf6;
+    background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
     color: white;
     border-bottom: 6px solid #6d28d9;
-    /* Thick 3D bottom border */
     transform: translateY(0);
-    transition: all 0.1s;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
 }
 
 .btn.primary:hover {
-    transform: translateY(2px);
-    border-bottom: 4px solid #6d28d9;
-    background: #9f67ff;
+    transform: translateY(-2px);
+    border-bottom: 8px solid #6d28d9;
+    background: linear-gradient(135deg, #c4b5fd 0%, #a78bfa 100%);
+    box-shadow: 0 8px 25px rgba(139, 92, 246, 0.6);
 }
 
 .btn.primary:active {
     transform: translateY(6px);
     border-bottom: 0px solid #6d28d9;
     margin-top: 6px;
-    /* Keep layout stable */
+    box-shadow: 0 2px 5px rgba(139, 92, 246, 0.4);
 }
 
 .btn.secondary {
