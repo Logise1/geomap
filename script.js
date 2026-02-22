@@ -22,28 +22,11 @@ const state = {
 let editorMap = null;
 let gameMap = null;
 
-function getTileLayers() {
-    return {
-        "Callejero": L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap &copy; CartoDB',
-            subdomains: 'abcd',
-            maxZoom: 19
-        }),
-        "Satélite": L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            attribution: 'Tiles &copy; Esri',
-            maxZoom: 19
-        }),
-        "Oscuro": L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap &copy; CartoDB',
-            subdomains: 'abcd',
-            maxZoom: 19
-        }),
-        "Claro": L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; OpenStreetMap &copy; CartoDB',
-            subdomains: 'abcd',
-            maxZoom: 19
-        })
-    };
+function getTileLayer() {
+    return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri',
+        maxZoom: 19
+    });
 }
 
 // Firebase Globals
@@ -546,20 +529,10 @@ function initMapForEditor() {
 
     } else {
         // Standard World Map
-        const savedTheme = localStorage.getItem('geomap_theme') || "Callejero";
-        const currentTileLayers = getTileLayers();
-        const initialLayer = currentTileLayers[savedTheme] || currentTileLayers["Callejero"];
-
         editorMap = L.map('editor-map', {
-            layers: [initialLayer],
+            layers: [getTileLayer()],
             zoomControl: true
         }).setView([20, 0], 2);
-
-        L.control.layers(currentTileLayers).addTo(editorMap);
-
-        editorMap.on('baselayerchange', function (e) {
-            localStorage.setItem('geomap_theme', e.name);
-        });
     }
 
     // Common event listeners
@@ -886,12 +859,8 @@ function initGameMap() {
 
         } else {
             // WORLD Map
-            const savedTheme = localStorage.getItem('geomap_theme') || "Callejero";
-            const currentTileLayers = getTileLayers();
-            const initialLayer = currentTileLayers[savedTheme] || currentTileLayers["Callejero"];
-
             gameMap = L.map('game-map', {
-                layers: [initialLayer], // Default layer
+                layers: [getTileLayer()], // Default layer
                 zoomControl: true,
                 attributionControl: false
             }).setView([20, 0], 2);
