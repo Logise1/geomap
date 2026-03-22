@@ -176,29 +176,22 @@
 
                 <div class="ui-overlay top-right">
                     <!-- Mode 1: Find location prompt -->
-                    <div id="prompt-find" class="game-prompt hidden">
+                    <div id="prompt-find" class="game-prompt side-panel hidden">
                         <p>Encuentra:</p>
                         <h2 id="target-name">Madrid</h2>
                         <div class="feedback-msg" id="feedback-find"></div>
+                        <button id="btn-next-round" class="btn secondary hidden" style="margin-top: 15px; width: 100%;">Siguiente →</button>
                     </div>
                 </div>
 
-                <!-- Game UI: Question/Interaction Area -->
-                <div class="ui-overlay bottom-panel game-panel">
-
-
-                    <!-- Mode 2: Geography Show (Text) -->
-                    <div id="prompt-show" class="game-prompt hidden">
-                        <p id="show-question-text">¿Qué lugar es este?</p>
-                        <div class="text-input-container" style="display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 10px;">
-                            <input type="text" id="geo-text-input" placeholder="Escribe tu respuesta..." autocomplete="off" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc; flex: 1; min-width: 200px;">
-                            <button id="btn-submit-answer" class="btn primary">Enviar</button>
-                        </div>
-                        <div class="feedback-msg" id="feedback-show"></div>
+                <!-- Mode 2: Geography Show (Text) -->
+                <div id="prompt-show" class="ui-overlay bottom-panel game-panel game-prompt hidden">
+                    <p id="show-question-text">¿Qué lugar es este?</p>
+                    <div class="text-input-container" style="display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 10px;">
+                        <input type="text" id="geo-text-input" placeholder="Escribe tu respuesta..." autocomplete="off" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc; flex: 1; min-width: 200px;">
+                        <button id="btn-submit-answer" class="btn primary">Enviar</button>
                     </div>
-
-                    <!-- Results / Next Button -->
-                    <button id="btn-next-round" class="btn secondary hidden">Siguiente →</button>
+                    <div class="feedback-msg" id="feedback-show"></div>
                 </div>
             </div>
         </div>
