@@ -23,9 +23,26 @@ let editorMap = null;
 let gameMap = null;
 
 function getTileLayer() {
-    return L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: 'Tiles &copy; Esri',
-        maxZoom: 19
+    return L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 8
+    });
+}
+
+function getSmallIcon() {
+    return L.divIcon({
+        className: 'custom-pin',
+        html: `<div style="
+            background: linear-gradient(135deg, #6366f1, #4338ca);
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+        "></div>`,
+        iconSize: [12, 12],
+        iconAnchor: [6, 6]
     });
 }
 
@@ -267,7 +284,7 @@ function editSet(e, id) {
     // initEditor calls initMapForEditor which resets the map. We add markers after.
     setTimeout(() => {
         state.currentSet.points.forEach(p => {
-            const m = L.marker([p.lat, p.lng]).addTo(editorMap).bindPopup(p.name);
+            const m = L.marker([p.lat, p.lng], { icon: getSmallIcon() }).addTo(editorMap).bindPopup(p.name);
             state.editorMarkers.push(m);
         });
     }, 100); // Small delay to ensure map init
@@ -456,7 +473,7 @@ function initEditor(setName, fromBackup = false, options = {}) {
                             // Wait for map to be ready? initMapForEditor is synchronous generally but image loading validiation might delay bounds
                             // But for marker placement, we just need the map object.
                             state.currentSet.points.forEach(p => {
-                                const m = L.marker([p.lat, p.lng]).addTo(editorMap).bindPopup(p.name);
+                                const m = L.marker([p.lat, p.lng], { icon: getSmallIcon() }).addTo(editorMap).bindPopup(p.name);
                                 state.editorMarkers.push(m);
                             });
 
@@ -531,7 +548,8 @@ function initMapForEditor() {
         // Standard World Map
         editorMap = L.map('editor-map', {
             layers: [getTileLayer()],
-            zoomControl: true
+            zoomControl: true,
+            maxZoom: 8
         }).setView([20, 0], 2);
     }
 
@@ -549,7 +567,7 @@ function onEditorMapClick(e) {
     if (state.tempMarker) {
         state.tempMarker.setLatLng(e.latlng);
     } else {
-        state.tempMarker = L.marker(e.latlng, { draggable: true }).addTo(editorMap);
+        state.tempMarker = L.marker(e.latlng, { draggable: true, icon: getSmallIcon() }).addTo(editorMap);
         state.tempMarker.on('dragend', () => {
             // Optional: update something on drag
         });
@@ -587,7 +605,7 @@ function confirmEditorPoint() {
     // Make marker permanent (change color or just leave it) and non-draggable
     // For visual simplicity, we remove temp and add a permanent one
     editorMap.removeLayer(state.tempMarker);
-    const permMarker = L.marker(latlng).addTo(editorMap).bindPopup(name);
+    const permMarker = L.marker(latlng, { icon: getSmallIcon() }).addTo(editorMap).bindPopup(name);
     state.editorMarkers.push(permMarker);
 
     state.tempMarker = null;
@@ -862,7 +880,8 @@ function initGameMap() {
             gameMap = L.map('game-map', {
                 layers: [getTileLayer()], // Default layer
                 zoomControl: true,
-                attributionControl: false
+                attributionControl: false,
+                maxZoom: 8
             }).setView([20, 0], 2);
 
             // Wait for view animation (400ms) + buffer
@@ -922,7 +941,7 @@ function setupModeFind(point) {
     $('target-name').innerText = point.name;
 
     state.currentSet.points.forEach(p => {
-        const marker = L.marker([p.lat, p.lng]).addTo(gameMap);
+        const marker = L.marker([p.lat, p.lng], { icon: getSmallIcon() }).addTo(gameMap);
         marker.on('click', () => handleMarkerClick(p, marker));
         state.game.markers.push(marker);
     });
@@ -964,21 +983,37 @@ function handleMarkerClick(clickedPointData, markerClicked) {
 }
 
 
-// MODE 2: GEO SHOW (Voice)
+// MODE 2: GEO SHOW (Text)
 function setupModeGeoShow(point) {
     if ($('prompt-find')) $('prompt-find').classList.add('hidden');
     if ($('prompt-show')) $('prompt-show').classList.remove('hidden');
 
-    // Hide the question text for a cleaner UI
-    $('show-question-text').style.display = 'none';
+    $('show-question-text').style.display = 'block';
 
-    // reset mic button logic
-    const micBtn = $('btn-mic');
-    micBtn.onclick = startListening;
-    micBtn.disabled = false;
+    const textInput = $('geo-text-input');
+    textInput.value = '';
+    textInput.disabled = false;
+    setTimeout(() => textInput.focus(), 600); // Focus after flyTo animation
+
+    const submitBtn = $('btn-submit-answer');
+    
+    // Clear old handlers
+    submitBtn.onclick = null;
+    textInput.onkeypress = null;
+
+    const handleSubmit = () => {
+        checkTextAnswer(textInput.value);
+    };
+
+    submitBtn.onclick = handleSubmit;
+    textInput.onkeypress = (e) => {
+        if (e.key === 'Enter') {
+            handleSubmit();
+        }
+    };
 
     // Marker logic
-    const marker = L.marker([point.lat, point.lng]).addTo(gameMap);
+    const marker = L.marker([point.lat, point.lng], { icon: getSmallIcon() }).addTo(gameMap);
     state.game.markers.push(marker);
 
     // Reduced zoom: 4 for World, 1 for Image (was 6 and 2)
@@ -989,59 +1024,6 @@ function setupModeGeoShow(point) {
         animate: true,
         duration: 0.5 // Faster transition
     });
-
-    // Start listening immediately (during transition)
-    startListening();
-}
-
-function startListening() {
-    if (!recognition) {
-        Swal.fire('Error', 'Tu navegador no soporta reconocimiento de voz.', 'error');
-        return;
-    }
-    const btn = $('btn-mic');
-    const indicator = $('listening-indicator');
-
-    // Setup events (always update handlers)
-    recognition.onresult = (event) => {
-        const lastResult = event.results[event.results.length - 1];
-        const transcript = lastResult[0].transcript;
-        const isFinal = lastResult.isFinal;
-        checkVoiceAnswer(transcript, isFinal);
-    };
-
-    recognition.onerror = (event) => {
-        console.error("STT Error", event.error);
-        if (event.error === 'not-allowed') {
-            btn.classList.remove('listening');
-            indicator.classList.add('hidden');
-            Swal.fire('Permiso denegado', 'Permite el uso del micrófono.', 'warning');
-        }
-        // Don't stop continuous on other errors if possible, or let onend handle it
-    };
-
-    recognition.onend = () => {
-        // Auto-restart if in Geo Show mode and not finished
-        if (state.game.mode === 'geo-show' && document.getElementById('game').classList.contains('active')) {
-            try {
-                recognition.start();
-            } catch (e) { /* ignore */ }
-        } else {
-            btn.classList.remove('listening');
-            indicator.classList.add('hidden');
-        }
-    };
-
-    try {
-        recognition.start();
-        btn.classList.add('listening');
-        indicator.classList.remove('hidden');
-    } catch (e) {
-        // Recognition already active
-        // Ensure UI matches state
-        btn.classList.add('listening');
-        indicator.classList.remove('hidden');
-    }
 }
 
 function levenshteinDistance(a, b) {
@@ -1079,18 +1061,18 @@ function levenshteinDistance(a, b) {
 
 const stateLock = { processing: false };
 
-function checkVoiceAnswer(transcript, isFinal) {
+function checkTextAnswer(transcript) {
     if (stateLock.processing) return;
 
-    if (!transcript || transcript.trim().length < 2) return;
+    if (!transcript || transcript.trim().length === 0) return;
 
-    // --- NON-BLOCKING CHECKS (Run before grace period) ---
+    // --- NON-BLOCKING CHECKS ---
     const correctName = state.game.currentPoint.name;
-    const cleanTranscript = transcript.replace(/\b(\w+)\s+\1\b/gi, '$1'); // Deduplicate
+    const cleanTranscript = transcript.trim();
     const normalizedTranscript = normalizeString(cleanTranscript);
     const normalizedTarget = normalizeString(correctName);
 
-    // 1. Check "PASAR" Command (Instant)
+    // 1. Check "PASAR" Command
     if (normalizedTranscript === 'pasar') {
         stateLock.processing = true;
         const feedback = $('feedback-show');
@@ -1103,16 +1085,18 @@ function checkVoiceAnswer(transcript, isFinal) {
         setTimeout(() => {
             stateLock.processing = false;
             nextRound();
-        }, 500); // Faster transition for skip (0.5s)
+        }, 500);
         return;
     }
 
-    // 2. Check CORRECT Answer (Instant)
+    // 2. Check CORRECT Answer
     const distance = levenshteinDistance(normalizedTranscript, normalizedTarget);
-    let tolerance = 0;
-    if (normalizedTarget.length > 3) tolerance = 1;
-    if (normalizedTarget.length > 6) tolerance = 2;
-    if (normalizedTarget.length > 10) tolerance = 3;
+    
+    // Tolerance for text input (Que valga con ser parecido)
+    // Roughly ~35% difference is allowed. For a 10 char word, 3 chars can be wrong
+    let tolerance = Math.floor(normalizedTarget.length * 0.35);
+    if (normalizedTarget.length <= 3) tolerance = 0;
+    else if (tolerance < 1) tolerance = 1;
 
     const isCorrect = normalizedTranscript === normalizedTarget ||
         (normalizedTarget.length > 3 && normalizedTranscript.includes(normalizedTarget)) ||
@@ -1123,7 +1107,7 @@ function checkVoiceAnswer(transcript, isFinal) {
     if (isCorrect) {
         stateLock.processing = true;
         state.game.score++;
-        feedback.innerText = `¡Bien! Dijiste: "${cleanTranscript}" 🎉`;
+        feedback.innerText = `¡Bien! Era: "${correctName}" 🎉`;
         feedback.classList.remove('wrong');
         feedback.classList.add('correct');
         playTone(true);
@@ -1132,22 +1116,18 @@ function checkVoiceAnswer(transcript, isFinal) {
         setTimeout(() => {
             stateLock.processing = false;
             nextRound();
-        }, 1000);
-        return;
-    }
-
-    // --- GRACE PERIOD FILTER for Incorrect/Noise ---
-    // User requested 1.5s grace period where incorrect/noise is ignored
-    if (state.game.roundStartTime && (Date.now() - state.game.roundStartTime < 1500)) {
-        return;
-    }
-
-    // 3. Incorrect (Only if final)
-    if (isFinal) {
+        }, 1200);
+    } else {
         feedback.innerText = `Incorrecto. Inténtalo de nuevo.`;
         feedback.classList.remove('correct');
         feedback.classList.add('wrong');
         playTone(false);
+        // Focus and select the text to quickly try again
+        const textInput = $('geo-text-input');
+        if (textInput) {
+            textInput.focus();
+            textInput.select();
+        }
     }
 }
 
@@ -1172,14 +1152,13 @@ function getIcon(color) {
         className: 'custom-pin',
         html: `<div style="
             background: linear-gradient(135deg, ${cssColor}, ${color === 'green' ? '#15803d' : '#991b1b'});
-            width: 24px;
-            height: 24px;
-            border-radius: 50% 50% 0 50%;
-            transform: rotate(45deg);
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
             border: 2px solid white;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
         "></div>`,
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
+        iconSize: [14, 14],
+        iconAnchor: [7, 7]
     });
 }

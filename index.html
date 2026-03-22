@@ -153,8 +153,8 @@
                     <p>Te damos un nombre, tú encuentras el marcador correcto en el mapa.</p>
                 </div>
                 <div class="card mode-card" data-mode="geo-show">
-                    <h3>🎙️ Geography Show</h3>
-                    <p>¡El show comienza! Dinos el nombre del lugar usando tu voz.</p>
+                    <h3>⌨️ Geography Show</h3>
+                    <p>¡El show comienza! Escribe el nombre del lugar.</p>
                 </div>
             </div>
         </div>
@@ -174,24 +174,25 @@
                     </div>
                 </div>
 
-                <!-- Game UI: Question/Interaction Area -->
-                <div class="ui-overlay bottom-panel game-panel">
-
+                <div class="ui-overlay top-right">
                     <!-- Mode 1: Find location prompt -->
                     <div id="prompt-find" class="game-prompt hidden">
                         <p>Encuentra:</p>
                         <h2 id="target-name">Madrid</h2>
                         <div class="feedback-msg" id="feedback-find"></div>
                     </div>
+                </div>
 
-                    <!-- Mode 2: Geography Show (Voice) -->
+                <!-- Game UI: Question/Interaction Area -->
+                <div class="ui-overlay bottom-panel game-panel">
+
+
+                    <!-- Mode 2: Geography Show (Text) -->
                     <div id="prompt-show" class="game-prompt hidden">
                         <p id="show-question-text">¿Qué lugar es este?</p>
-                        <div class="mic-container">
-                            <button id="btn-mic" class="btn mic-btn">
-                                <span class="mic-icon">🎙️</span>
-                            </button>
-                            <div id="listening-indicator" class="hidden">Escuchando...</div>
+                        <div class="text-input-container" style="display: flex; gap: 10px; justify-content: center; align-items: center; margin-top: 10px;">
+                            <input type="text" id="geo-text-input" placeholder="Escribe tu respuesta..." autocomplete="off" style="padding: 10px; border-radius: 8px; border: 1px solid #ccc; flex: 1; min-width: 200px;">
+                            <button id="btn-submit-answer" class="btn primary">Enviar</button>
                         </div>
                         <div class="feedback-msg" id="feedback-show"></div>
                     </div>

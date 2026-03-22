@@ -456,6 +456,11 @@ button {
     left: 24px;
 }
 
+.top-right {
+    top: 24px;
+    right: 24px;
+}
+
 .top-center {
     top: 24px;
     left: 50%;
